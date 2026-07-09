@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tech Readiness Assessment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex items-center justify-center p-4">
+
+  <div class="max-w-xl w-full bg-white rounded-xl shadow-lg p-6 md:p-8">
+    <header class="text-center mb-8">
+      <h1 class="text-2xl md:text-3xl font-bold text-indigo-600">Technology Readiness Assessment</h1>
+      <p class="text-gray-500 mt-2 text-sm">Find out if your company is ready to adopt new tech tools.</p>
+    </header>
+
+    <div id="formLoader" class="text-center py-12">
+      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-3"></div>
+      <p class="text-gray-500 text-sm">Loading dynamic evaluation modules...</p>
+    </div>
+
+    <form id="assessmentForm" onsubmit="submitForm(event)" class="hidden space-y-6">
+      <div id="dynamicQuestionsContainer" class="space-y-5"></div>
+
+      <div class="pt-2">
+        <button type="submit" id="submitBtn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 text-sm">
+          Calculate Diagnostics
+        </button>
+        <p id="submittingText" class="hidden text-center text-indigo-600 font-medium text-sm mt-3 animate-pulse">
+          Analyzing your answers...
+        </p>
+      </div>
+    </form>
+
+    <div id="resultsSection" class="hidden space-y-6">
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-6 text-center">
+        
+        <h3 class="text-md font-bold text-gray-800 mb-3">Results:</h3>
+        <ul id="resultsList" class="space-y-3 text-sm text-gray-600 list-disc pl-5">
+          </ul>
+
+      <button onclick="resetForm()" class="w-full bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-200 text-sm">
+        Take Assessment Again
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    // Trigger the data fetch as soon as the window finishes loading
+    window.onload = function() {
+      google.script.run
+        .withSuccessHandler(renderQuestions)
+        .withFailureHandler(handleInitError)
+        .getQuestions();
+    };
+
+    // Loops through the Sheet data array and dynamically appends HTML elements
+    function renderQuestions(questions) {
+      const container = document.getElementById('dynamicQuestionsContainer');
+      container.innerHTML = ''; 
+
+      questions.forEach((q, index) => {
+        const qWrapper = document.createElement('div');
+        
+        // Create the Label
+        const label = document.createElement('label');
+        label.className = 'block text-sm font-medium text-gray-700 mb-1.5';
+        label.innerText = `${index + 1}. ${q.text}`;
+        qWrapper.appendChild(label);
+
+        // Create the Dropdown Selection
+        const select = document.createElement('select');
+        select.name = q.id;
+        select.required = true;
+        select.className = 'w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white focus:border-indigo-500 outline-none';
+
+        // Placeholder Option
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.disabled = true;
+        defaultOpt.selected = true;
+        defaultOpt.innerText = 'Select an option...';
+        select.appendChild(defaultOpt);
+
+        // Add options from the spreadsheet row
+        q.options.forEach(opt => {
+          if (opt.text.trim() !== '') { // Ensure option isn't empty
+            const o = document.createElement('option');
+            o.value = opt.value;
+            o.innerText = opt.text;
+            select.appendChild(o);
+          }
+        });
+
+        qWrapper.appendChild(select);
+        container.appendChild(qWrapper);
+      });
+
+      // Switch views from Loader to Form
+      document.getElementById('formLoader').classList.add('hidden');
+      document.getElementById('assessmentForm').classList.remove('hidden');
+    }
+
+    function submitForm(event) {
+      event.preventDefault();
+      const form = document.getElementById('assessmentForm');
+      const submitBtn = document.getElementById('submitBtn');
+      const submittingText = document.getElementById('submittingText');
+      
+      submitBtn.disabled = true;
+      submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      submittingText.classList.remove('hidden');
+
+      // Automatically construct the payload from whatever form elements exist
+      const formData = {};
+      const inputs = form.querySelectorAll('input, select');
+      inputs.forEach(input => {
+        formData[input.name] = input.value;
+      });
+
+      console.log('Submitting assessment for processing')
+      google.script.run
+        .withSuccessHandler(displayResults)
+        .withFailureHandler(handleSubmitError)
+        .processAssessment(formData);
+    }
+
+    function displayResults(results) {
+      // Hide form, show results container
+      document.getElementById('assessmentForm').classList.add('hidden');
+      document.getElementById('resultsSection').classList.remove('hidden');
+      
+      const listContainer = document.getElementById('resultsList');
+      listContainer.innerHTML = '';
+      results.scores.forEach(item => {
+          const li = document.createElement('li');
+          li.innerHTML = item.core + " " + item.category + " " + item.score;
+          listContainer.appendChild(li);
+      });
+    }
+
+    function handleInitError(err) {
+      alert("Failed to load questions from Google Sheets: " + err.message);
+    }
+
+    function handleSubmitError(err) {
+      alert("Error evaluating choices: " + err.message);
+      resetForm();
+    }
+
+    function handleError(error) {
+      alert("Something went wrong processing your diagnostics: " + error.message);
+      resetForm();
+    }
+
+    function resetForm() {
+      const form = document.getElementById('assessmentForm');
+      const submitBtn = document.getElementById('submitBtn');
+      const loadingText = document.getElementById('loadingText');
+      
+      form.reset();
+      
+      // Reset UI Visibility states
+      document.getElementById('resultsSection').classList.add('hidden');
+      form.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      loadingText.add('hidden');
+    }
+  </script>
+</body>
+</html>
