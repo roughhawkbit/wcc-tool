@@ -34,11 +34,12 @@
 
     <div id="resultsSection" class="hidden space-y-6">
       <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-6 text-center">
+        
         <h3 class="text-md font-bold text-gray-800 mb-3">Results:</h3>
         <ul id="resultsList" class="space-y-3 text-sm text-gray-600 list-disc pl-5">
           </ul>
       </div>
-        
+
       <button onclick="resetForm()" class="w-full bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-200 text-sm">
         Take Assessment Again
       </button>
@@ -64,36 +65,33 @@
         const qWrapper = document.createElement('div');
         
         // Create the Label
-        const label = document.createElement('label');
-        label.className = 'block text-sm font-medium text-gray-700 mb-1.5';
-        label.innerText = `${index + 1}. ${q.text}`;
-        qWrapper.appendChild(label);
+        const wccQ = document.createElement('label');
+        wccQ.className = 'block text-sm font-medium text-gray-700 mb-1.5';
+        wccQ.innerText = `${index + 1}. ${q.text}`;
+        qWrapper.appendChild(wccQ);
 
-        // Create the Dropdown Selection
-        const select = document.createElement('select');
-        select.name = q.id;
-        select.required = true;
-        select.className = 'w-full border border-gray-300 rounded px-3 py-2 text-sm bg-white focus:border-indigo-500 outline-none';
-
-        // Placeholder Option
-        const defaultOpt = document.createElement('option');
-        defaultOpt.value = '';
-        defaultOpt.disabled = true;
-        defaultOpt.selected = true;
-        defaultOpt.innerText = 'Select an option...';
-        select.appendChild(defaultOpt);
-
-        // Add options from the spreadsheet row
-        q.options.forEach(opt => {
+        // Create the radio buttons for the levels
+        const levelLabels = [
+          'Level 1 - Absent/Reactive',
+          'Level 2 - Emerging/Informal',
+          'Level 3 - Defined/Aligned',
+          'Level 4 - Advanced/Integrated & Innovation Driven'
+        ]
+        q.options.forEach(function (opt, i) {
           if (opt.text.trim() !== '') { // Ensure option isn't empty
-            const o = document.createElement('option');
-            o.value = opt.value;
-            o.innerText = opt.text;
-            select.appendChild(o);
+            const input = document.createElement('input');
+            input.type = "radio";
+            input.name = q.id;
+            input.id = q.id + "-" + opt.value;
+            input.value = opt.value;
+            qWrapper.appendChild(input);
+            const label = document.createElement('label');
+            label.for = q.id + "-" + opt.value;
+            label.value = opt.value;
+            label.innerHTML =  " <strong>"+levelLabels[i] + "</strong> " + opt.text + "<br>";
+            qWrapper.appendChild(label);
           }
         });
-
-        qWrapper.appendChild(select);
         container.appendChild(qWrapper);
       });
 
@@ -114,9 +112,12 @@
 
       // Automatically construct the payload from whatever form elements exist
       const formData = {};
-      const inputs = form.querySelectorAll('input, select');
+      const inputs = form.querySelectorAll('input');
       inputs.forEach(input => {
-        formData[input.name] = input.value;
+        if (input.checked) {
+          formData[input.name] = input.value;
+          console.log(input.name + " - " + input.value);
+        }
       });
 
       console.log('Submitting assessment for processing')
